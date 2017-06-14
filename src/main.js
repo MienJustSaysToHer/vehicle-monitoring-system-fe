@@ -3,12 +3,17 @@
 import Vue from 'vue'
 import ElementUI from 'element-ui'
 import 'element-ui/lib/theme-default/index.css'
+import BaiduMap from 'vue-baidu-map'
 import App from './App'
 import router from './router'
 
 Vue.config.productionTip = false
 
 Vue.use(ElementUI)
+
+Vue.use(BaiduMap, {
+  ak: '8pDsIpN3UBbraSvg9yV02GuOK5su0R4T'
+})
 
 new Vue({
   router,
