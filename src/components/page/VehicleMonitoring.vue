@@ -18,6 +18,12 @@
         <div class="info-text">
           湿度：{{ infoWindow.humidity }}
         </div>
+        <div class="info-text">
+          载重：{{ infoWindow.loadweight }}
+        </div>
+        <div class="info-text">
+          载方：{{ infoWindow.loadvolume }}
+        </div>
       </el-card>
     </bm-info-window>
     <bm-control id="table-control" anchor="BMAP_ANCHOR_TOP_RIGHT">
@@ -25,13 +31,19 @@
         <el-collapse-item title="筛选" name="1">
           <el-form ref="form" :model="form" label-width="80px">
             <el-form-item label="车牌省">
-              <el-select v-model="form.province" multiple placeholder="请选择">
+              <el-select v-model="form.province" multiple placeholder="请选择车牌省" filterable default-first-option>
                 <el-option v-for="p in provinces" :key="p.value" :value="p.value" :label="p.label"></el-option>
               </el-select>
             </el-form-item>
+            <el-form-item label="车牌号">
+              <el-input v-model="form.numberPlate" placeholder="请输入车牌号" class="number-plate"></el-input>
+            </el-form-item>
+            <el-form-item label="所在地域">
+              <el-cascader v-model="form.area" :options="areas" placeholder="请选择所在地域" filterable change-on-select></el-cascader>
+            </el-form-item>
             <el-form-item>
-              <el-button type="primary">筛选</el-button>
-              <el-button>取消</el-button>
+              <el-button type="primary" @click="submitForm">筛选</el-button>
+              <el-button @click="resetForm">取消</el-button>
             </el-form-item>
           </el-form>
         </el-collapse-item>
@@ -57,6 +69,8 @@
 
 <script>
   import axios from 'axios'
+  import provinces from '../../store/provinces'
+  import areas from '../../store/areas'
 
   export default {
     data () {
@@ -88,109 +102,22 @@
           longitude: '',
           latitude: '',
           temperature: '',
-          humidity: ''
+          humidity: '',
+          loadweight: '',
+          loadvolume: ''
         },
         form: {
-          province: ''
+          province: [],
+          numberPlate: '',
+          area: []
         },
-        provinces: [{
-          value: '京',
-          label: '京'
-        }, {
-          value: '津',
-          label: '津'
-        }, {
-          value: '冀',
-          label: '冀'
-        }, {
-          value: '晋',
-          label: '晋'
-        }, {
-          value: '蒙',
-          label: '蒙'
-        }, {
-          value: '辽',
-          label: '辽'
-        }, {
-          value: '吉',
-          label: '吉'
-        }, {
-          value: '黑',
-          label: '黑'
-        }, {
-          value: '沪',
-          label: '沪'
-        }, {
-          value: '苏',
-          label: '苏'
-        }, {
-          value: '浙',
-          label: '浙'
-        }, {
-          value: '皖',
-          label: '皖'
-        }, {
-          value: '闽',
-          label: '闽'
-        }, {
-          value: '赣',
-          label: '赣'
-        }, {
-          value: '鲁',
-          label: '鲁'
-        }, {
-          value: '豫',
-          label: '豫'
-        }, {
-          value: '鄂',
-          label: '鄂'
-        }, {
-          value: '湘',
-          label: '湘'
-        }, {
-          value: '粤',
-          label: '粤'
-        }, {
-          value: '桂',
-          label: '桂'
-        }, {
-          value: '琼',
-          label: '琼'
-        }, {
-          value: '渝',
-          label: '渝'
-        }, {
-          value: '川',
-          label: '川'
-        }, {
-          value: '贵',
-          label: '贵'
-        }, {
-          value: '云',
-          label: '云'
-        }, {
-          value: '藏',
-          label: '藏'
-        }, {
-          value: '陕',
-          label: '陕'
-        }, {
-          value: '甘',
-          label: '甘'
-        }, {
-          value: '青',
-          label: '青'
-        }, {
-          value: '宁',
-          label: '宁'
-        }, {
-          value: '新',
-          label: '新'
-        }],
+        provinces,
+        areas,
         pagination: {
           pageSize: 10,
           currentPage: 1
-        }
+        },
+        timeouts: {}
       }
     },
     methods: {
@@ -199,9 +126,20 @@
         this.map.map = map
         const that = this
 
+        axios.get('/api/vehicle-monitoring/vehicles')
+          .then(response => {
+            if (response.status === 200) {
+              that.vehicles = response.data
+              that.map.map.setViewport(that.vehicles.map(v => {
+                return new that.map.bmap.Point(v.longitude, v.latitude)
+              }))
+            }
+          })
+          .catch(error => console.log(error))
+
         if ('WebSocket' in window) {
           let websocket = new WebSocket('ws://localhost/vehicle-monitoring')
-          websocket.onmessage = function (event) {
+          websocket.onmessage = event => {
             const newVehicle = JSON.parse(event.data)
             const vehicles = that.vehicles.filter(v => {
               return v.id === newVehicle.id
@@ -223,26 +161,27 @@
               const pathlength = path.length
 
               function resetMkPoint (i) {
+                if (path[i] === undefined) {
+                  return
+                }
                 vehicle.longitude = path[i].lng
                 vehicle.latitude = path[i].lat
                 if (i < pathlength) {
-                  setTimeout(function () {
+                  that.timeouts[vehicle.id] = setTimeout(() => {
                     i++
                     resetMkPoint(i)
                   }, 10)
                 }
               }
 
-              setTimeout(function () {
-                resetMkPoint(5)
-              }, 10)
+              that.timeouts[vehicle.id] = setTimeout(() => resetMkPoint(5), 10)
             })
           }
         } else {
           alert('Not support websocket')
         }
       },
-      handleMouseover ({province, numberPlate, longitude, latitude, temperature, humidity}) {
+      handleMouseover ({province, numberPlate, longitude, latitude, temperature, humidity, loadweight, loadvolume}) {
         this.infoWindow.show = true
         this.infoWindow.province = province
         this.infoWindow.numberPlate = numberPlate
@@ -250,6 +189,8 @@
         this.infoWindow.latitude = latitude
         this.infoWindow.temperature = temperature
         this.infoWindow.humidity = humidity
+        this.infoWindow.loadweight = loadweight
+        this.infoWindow.loadvolume = loadvolume
       },
       handleMouseout () {
         this.infoWindow.show = false
@@ -257,6 +198,52 @@
       handleClick (v) {
         this.$refs.multipleTable.toggleRowSelection(v)
         this.pagination.currentPage = this.vehicles.indexOf(v) / this.pagination.pageSize + 1
+      },
+      submitForm () {
+        const that = this
+        axios.get('/api/vehicle-monitoring/vehicles/filter', {
+          params: that.form
+        })
+          .then(response => {
+            if (response.status === 200) {
+              for (const timeout in that.timeouts) {
+                if (that.timeouts.hasOwnProperty(timeout)) {
+                  clearTimeout(that.timeouts[timeout])
+                }
+              }
+              that.pagination.currentPage = 1
+              that.vehicles = response.data
+              that.map.map.setViewport(that.vehicles.map(v => {
+                return new that.map.bmap.Point(v.longitude, v.latitude)
+              }))
+            }
+          })
+          .catch(error => console.log(error))
+      },
+      resetForm () {
+        this.$refs.form.resetFields()
+        this.form = {
+          province: [],
+          numberPlate: '',
+          area: []
+        }
+        const that = this
+        axios.get('/api/vehicle-monitoring/vehicles')
+          .then(response => {
+            if (response.status === 200) {
+              for (const timeout in that.timeouts) {
+                if (that.timeouts.hasOwnProperty(timeout)) {
+                  clearTimeout(that.timeouts[timeout])
+                }
+              }
+              that.pagination.currentPage = 1
+              that.vehicles = response.data
+              that.map.map.setViewport(that.vehicles.map(v => {
+                return new that.map.bmap.Point(v.longitude, v.latitude)
+              }))
+            }
+          })
+          .catch(error => console.log(error))
       },
       handleSelect (selection) {
         this.map.map.setViewport(selection.map(v => {
@@ -269,18 +256,6 @@
       handleCurrentChange (currentPage) {
         this.pagination.currentPage = currentPage
       }
-    },
-    beforeCreate () {
-      const that = this
-      axios.get('/api/vehicle-monitoring/vehicles')
-        .then(function (response) {
-          if (response.status === 200) {
-            that.vehicles = response.data
-          }
-        })
-        .catch(function (error) {
-          console.log(error)
-        })
     }
   }
 </script>
@@ -295,6 +270,10 @@
   .info-text {
     font-size: 14px;
     padding: 5px 0;
+  }
+
+  .number-plate {
+    width: 40%;
   }
 
   #table-control {
