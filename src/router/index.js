@@ -10,12 +10,16 @@ export default new Router({
       component: resolve => require(['../components/common/Home.vue'], resolve),
       children: [
         {
+          path: '/vehicles',
+          component: resolve => require(['../components/page/Vehicles.vue'], resolve)
+        },
+        {
           path: '/',
           component: resolve => require(['../components/page/VehicleMonitoring.vue'], resolve)
         },
         {
-          path: '/basetable',
-          component: resolve => require(['../components/page/BaseTable.vue'], resolve)
+          path: '/distribution',
+          component: resolve => require(['../components/page/VehicleDistribution.vue'], resolve)
         }
       ]
     }

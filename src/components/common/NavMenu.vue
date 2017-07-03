@@ -17,13 +17,16 @@
     </div>
     <el-menu default-active="/" router class="el-menu-vertical-demo" @open="handleOpen" @close="handleClose">
       <el-submenu index="1">
-        <template slot="title"><i class="el-icon-message"></i>运输车辆监控</template>
-        <el-menu-item index="/">车辆在线监控</el-menu-item>
-        <el-menu-item index="basetable">实时订单跟踪</el-menu-item>
+        <template slot="title"><i class="el-icon-message"></i>角色管理</template>
+        <el-menu-item index="/vehicles">车辆</el-menu-item>
       </el-submenu>
       <el-submenu index="2">
-        <template slot="title"><i class="el-icon-message"></i>运输车辆统计</template>
-        <el-menu-item index="2-1">总体统计</el-menu-item>
+        <template slot="title"><i class="el-icon-message"></i>监控</template>
+        <el-menu-item index="/">车辆监控</el-menu-item>
+      </el-submenu>
+      <el-submenu index="3">
+        <template slot="title"><i class="el-icon-message"></i>统计</template>
+        <el-menu-item index="/distribution">车辆分布</el-menu-item>
       </el-submenu>
     </el-menu>
   </div>
