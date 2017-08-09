@@ -6,6 +6,7 @@ import 'element-ui/lib/theme-default/index.css'
 import BaiduMap from 'vue-baidu-map'
 import App from './App'
 import router from './router'
+import 'font-awesome/css/font-awesome.css'
 
 Vue.config.productionTip = false
 

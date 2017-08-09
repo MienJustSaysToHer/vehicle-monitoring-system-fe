@@ -1,6 +1,6 @@
 <template>
   <baidu-map id="baidu-map" :center="map.center" :zoom="map.zoom" :scroll-wheel-zoom="map.scrollWheelZoom" @ready="handleReady">
-    <bm-marker v-for="v in vehicles" :key="v.id" :position="{lng: v.longitude, lat: v.latitude}" :icon="vehicle.icon" @mouseover="handleMouseover (v)" @mouseout="handleMouseout" @click="handleClick (v)"></bm-marker>
+    <bm-marker v-for="v in vehicles" :key="v.id" :position="{lng: v.longitude, lat: v.latitude}" :icon="vehicleIcon(v.type)" @mouseover="handleMouseover (v)" @mouseout="handleMouseout" @click="handleClick (v)"></bm-marker>
     <bm-info-window :show="infoWindow.show" :position="{lng: infoWindow.longitude, lat: infoWindow.latitude}">
       <el-card class="box-card">
         <div slot="header">
@@ -10,10 +10,25 @@
           车牌号：{{ infoWindow.province }}{{ infoWindow.numberPlate }}
         </div>
         <div class="info-text">
+          车辆类型：{{ typeFormatter(infoWindow) }}
+        </div>
+        <div class="info-text">
+          车辆状态：{{ stateFormatter(infoWindow) }}
+        </div>
+        <div class="info-text">
+          运输单号：{{ tonumberFormatter(infoWindow) }}
+        </div>
+        <div class="info-text">
           经度：{{ infoWindow.longitude }}
         </div>
         <div class="info-text">
           纬度：{{ infoWindow.latitude }}
+        </div>
+        <div class="info-text">
+          剩余载重t：{{ infoWindow.loadweight }}
+        </div>
+        <div class="info-text">
+          载方m³：{{ infoWindow.loadvolume }}
         </div>
         <div class="info-text">
           温度℃：{{ infoWindow.temperature }}
@@ -21,18 +36,12 @@
         <div class="info-text">
           湿度%：{{ infoWindow.humidity }}
         </div>
-        <div class="info-text">
-          载重t：{{ infoWindow.loadweight }}
-        </div>
-        <div class="info-text">
-          载方m³：{{ infoWindow.loadvolume }}
-        </div>
       </el-card>
     </bm-info-window>
     <bm-control id="table-control" anchor="BMAP_ANCHOR_TOP_RIGHT">
       <el-collapse id="collapse">
         <el-collapse-item title="筛选" name="1">
-          <el-form ref="form" :model="form" label-width="80px">
+          <el-form ref="form" :model="form" inline label-width="80px">
             <el-form-item label="车牌省">
               <el-select v-model="form.province" multiple placeholder="请选择车牌省" filterable default-first-option>
                 <el-option v-for="p in provinces" :key="p.value" :value="p.value" :label="p.label"></el-option>
@@ -43,6 +52,11 @@
             </el-form-item>
             <el-form-item label="所在地域">
               <el-cascader v-model="form.area" :options="areas" placeholder="请选择所在地域" filterable change-on-select></el-cascader>
+            </el-form-item>
+            <el-form-item label="车辆状态">
+              <el-select v-model="form.state" placeholder="请选择车辆状态" filterable default-first-option>
+                <el-option v-for="s in states" :key="s.value" :value="s.value" :label="s.label"></el-option>
+              </el-select>
             </el-form-item>
             <el-form-item>
               <el-button type="primary" @click="submitForm">筛选</el-button>
@@ -56,12 +70,15 @@
             <el-table-column prop="phone" label="手机号" width="130" fixed></el-table-column>
             <el-table-column prop="province" label="车牌省" width="90" fixed></el-table-column>
             <el-table-column prop="numberPlate" label="车牌号" width="90" fixed></el-table-column>
+            <el-table-column prop="type" label="车辆类型" width="100" :formatter="typeFormatter"></el-table-column>
+            <el-table-column prop="state" label="车辆状态" width="100" :formatter="stateFormatter"></el-table-column>
+            <el-table-column prop="tonumber" label="运输单号" width="100" :formatter="tonumberFormatter"></el-table-column>
             <el-table-column prop="longitude" label="经度" width="120"></el-table-column>
             <el-table-column prop="latitude" label="纬度" width="120"></el-table-column>
+            <el-table-column prop="loadweight" label="剩余载重t" width="100"></el-table-column>
+            <el-table-column prop="loadvolume" label="载方m³" width="100"></el-table-column>
             <el-table-column prop="temperature" label="温度℃" width="100"></el-table-column>
             <el-table-column prop="humidity" label="湿度%" width="100"></el-table-column>
-            <el-table-column prop="loadweight" label="载重t" width="100"></el-table-column>
-            <el-table-column prop="loadvolume" label="载方m³" width="100"></el-table-column>
             <el-table-column fixed="right" label="操作" width="100">
               <template scope="scope">
                 <el-button size="small" @click="handleCommand(scope.row)">发送命令</el-button>
@@ -79,11 +96,16 @@
           <el-input v-model="dialogForm.numberPlate" readonly></el-input>
         </el-form-item>
         <el-form-item label="命令类型">
-          <el-radio v-model="dialogForm.type" label="0">发送短信</el-radio>
+          <el-radio v-model="dialogForm.type" label="0">推送订单</el-radio>
           <el-radio v-model="dialogForm.type" label="1">推送通知</el-radio>
         </el-form-item>
-        <el-form-item label="命令内容">
+        <el-form-item label="通知内容" v-show="dialogForm.type === '1'">
           <el-input v-model="dialogForm.content" placeholder="请输入命令内容"></el-input>
+        </el-form-item>
+        <el-form-item label="运输单号" v-show="dialogForm.type === '0'">
+          <el-select v-model="dialogForm.id" placeholder="请选择运输单号" filterable default-first-option class="tonumber">
+            <el-option v-for="t in transportorders" :key="t.id" :value="t.id" :label="t.tonumber"></el-option>
+          </el-select>
         </el-form-item>
         <el-form-item label="定时发送">
           <el-switch v-model="dialogForm.assertTime"></el-switch>
@@ -133,6 +155,9 @@
           phone: '',
           province: '',
           numberPlate: '',
+          type: '',
+          state: '',
+          tonumber: '',
           longitude: '',
           latitude: '',
           temperature: '',
@@ -143,10 +168,18 @@
         form: {
           province: [],
           numberPlate: '',
-          area: []
+          area: [],
+          state: ''
         },
         provinces,
         areas,
+        states: [{
+          value: 0,
+          label: '空闲'
+        }, {
+          value: 1,
+          label: '运输中'
+        }],
         pagination: {
           pageSize: 10,
           currentPage: 1
@@ -158,9 +191,11 @@
           numberPlate: '',
           type: 0,
           content: '',
+          id: '',
           assertTime: false,
           time: ''
-        }
+        },
+        transportorders: []
       }
     },
     methods: {
@@ -228,6 +263,15 @@
             if (newVehicle.numberPlate) {
               vehicle.numberPlate = newVehicle.numberPlate
             }
+            if (newVehicle.type) {
+              vehicle.type = newVehicle.type
+            }
+            if (newVehicle.state) {
+              vehicle.state = newVehicle.state
+            }
+            if (newVehicle.tonumber) {
+              vehicle.tonumber = newVehicle.tonumber
+            }
             if (newVehicle.temperature) {
               vehicle.temperature = newVehicle.temperature
             }
@@ -245,17 +289,86 @@
           alert('Not support websocket')
         }
       },
-      handleMouseover ({phone, province, numberPlate, longitude, latitude, temperature, humidity, loadweight, loadvolume}) {
+      handleMouseover ({phone, province, numberPlate, longitude, latitude, type, state, tonumber, temperature, humidity, loadweight, loadvolume}) {
         this.infoWindow.show = true
         this.infoWindow.phone = phone
         this.infoWindow.province = province
         this.infoWindow.numberPlate = numberPlate
+        this.infoWindow.type = type
+        this.infoWindow.state = state
+        this.infoWindow.tonumber = tonumber
         this.infoWindow.longitude = longitude
         this.infoWindow.latitude = latitude
         this.infoWindow.temperature = temperature
         this.infoWindow.humidity = humidity
         this.infoWindow.loadweight = loadweight
         this.infoWindow.loadvolume = loadvolume
+      },
+      stateFmt (state) {
+        if (state) {
+          return '运输中'
+        } else {
+          return '空闲'
+        }
+      },
+      tonumberFmt (tonumber) {
+        if (tonumber) {
+          return tonumber
+        } else {
+          return '空闲'
+        }
+      },
+      vehicleIcon (type) {
+        switch (type) {
+          case 1:
+            return {
+              url: '../../../static/img/vehicle.png',
+              size: {
+                width: 80,
+                height: 51
+              }
+            }
+          case 2:
+            return {
+              url: '../../../static/img/vehicle2.png',
+              size: {
+                width: 80,
+                height: 53
+              }
+            }
+          case 3:
+            return {
+              url: '../../../static/img/vehicle3.png',
+              size: {
+                width: 80,
+                height: 49
+              }
+            }
+          case 4:
+            return {
+              url: '../../../static/img/vehicle4.png',
+              size: {
+                width: 80,
+                height: 56
+              }
+            }
+          case 5:
+            return {
+              url: '../../../static/img/vehicle5.png',
+              size: {
+                width: 80,
+                height: 38
+              }
+            }
+          case 6:
+            return {
+              url: '../../../static/img/vehicle6.png',
+              size: {
+                width: 80,
+                height: 31
+              }
+            }
+        }
       },
       handleMouseout () {
         this.infoWindow.show = false
@@ -289,7 +402,8 @@
         this.form = {
           province: [],
           numberPlate: '',
-          area: []
+          area: [],
+          state: ''
         }
         const that = this
         axios.get('/api/vehicles')
@@ -314,7 +428,49 @@
           return new this.map.bmap.Point(v.longitude, v.latitude)
         }))
       },
+      typeFormatter (row) {
+        switch (row.type) {
+          case 1:
+            return '厢式车'
+          case 2:
+            return '罐式车'
+          case 3:
+            return '罐式车'
+          case 4:
+            return '高栏车'
+          case 5:
+            return '中栏车'
+          case 6:
+            return '低栏车'
+        }
+      },
+      stateFormatter (row) {
+        if (row.state) {
+          return '运输中'
+        } else {
+          return '空闲'
+        }
+      },
+      tonumberFormatter (row) {
+        if (row.tonumber) {
+          return row.tonumber
+        } else {
+          return '空闲'
+        }
+      },
       handleCommand (row) {
+        const that = this
+        axios.get('/api/transportorders', {
+          params: {
+            state: 0
+          }
+        })
+          .then(response => {
+            if (response.status === 200) {
+              that.transportorders = response.data
+            }
+          })
+          .catch(error => console.log(error))
         this.dialogForm.numberPlate = row.province + row.numberPlate
         this.dialogFormVisible = true
         this.dialogForm.phone = row.phone
@@ -322,7 +478,7 @@
       submitCommand () {
         const that = this
         axios.post('/api/vehicles/command/' + that.dialogForm.phone, that.dialogForm)
-          .then(function (response) {
+          .then(() => {
             const h = that.$createElement
             that.$notify({
               title: '提示',
@@ -330,9 +486,7 @@
             })
             that.dialogFormVisible = false
           })
-          .catch(function (error) {
-            console.log(error)
-          })
+          .catch(error => console.log(error))
       },
       handleSizeChange (pageSize) {
         this.pagination.pageSize = pageSize
@@ -371,6 +525,10 @@
   }
 
   #table {
+    width: 100%;
+  }
+
+  .tonumber {
     width: 100%;
   }
 </style>

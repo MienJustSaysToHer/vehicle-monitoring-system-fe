@@ -17,15 +17,20 @@
     </div>
     <el-menu default-active="/" router class="el-menu-vertical-demo" @open="handleOpen" @close="handleClose">
       <el-submenu index="1">
-        <template slot="title"><i class="el-icon-message"></i>角色管理</template>
+        <template slot="title"><i class="fa fa-users" aria-hidden="true"></i> 角色管理</template>
         <el-menu-item index="/vehicles">车辆</el-menu-item>
       </el-submenu>
       <el-submenu index="2">
-        <template slot="title"><i class="el-icon-message"></i>监控</template>
-        <el-menu-item index="/">车辆监控</el-menu-item>
+        <template slot="title"><i class="fa fa-table" aria-hidden="true"></i> 订单管理</template>
+        <el-menu-item index="/transportorders">运输订单</el-menu-item>
       </el-submenu>
       <el-submenu index="3">
-        <template slot="title"><i class="el-icon-message"></i>统计</template>
+        <template slot="title"><i class="fa fa-eye" aria-hidden="true"></i> 监控</template>
+        <el-menu-item index="/">车辆监控</el-menu-item>
+        <el-menu-item index="/transportorder">历史回放</el-menu-item>
+      </el-submenu>
+      <el-submenu index="4">
+        <template slot="title"><i class="fa fa-line-chart" aria-hidden="true"></i> 统计</template>
         <el-menu-item index="/distribution">车辆分布</el-menu-item>
       </el-submenu>
     </el-menu>
