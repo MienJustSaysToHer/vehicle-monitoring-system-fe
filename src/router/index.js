@@ -14,6 +14,10 @@ export default new Router({
           component: resolve => require(['../components/page/Vehicles.vue'], resolve)
         },
         {
+          path: '/roles',
+          component: resolve => require(['../components/page/Roles.vue'], resolve)
+        },
+        {
           path: '/transportorders',
           component: resolve => require(['../components/page/TransportOrders.vue'], resolve)
         },

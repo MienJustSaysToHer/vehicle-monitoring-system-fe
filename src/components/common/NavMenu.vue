@@ -18,6 +18,8 @@
     <el-menu default-active="/" router class="el-menu-vertical-demo" @open="handleOpen" @close="handleClose">
       <el-submenu index="1">
         <template slot="title"><i class="fa fa-users" aria-hidden="true"></i> 角色管理</template>
+        <el-menu-item index="/roles">系统角色管理</el-menu-item>
+        <el-menu-item index="/users">用户管理</el-menu-item>
         <el-menu-item index="/vehicles">车辆</el-menu-item>
       </el-submenu>
       <el-submenu index="2">
